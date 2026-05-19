@@ -34,6 +34,13 @@ void matrix_view_on_mark(char preview_char)
 
 void matrix_view_on_submit(char submitted_char)
 {
+    if (submitted_char == ' ' && shift_pending)
+    {
+        // A submitted space must move the previous character left, not erase it.
+        shift_left_one_character();
+        shift_pending = 0;
+    }
+
     // Spaces naturally draw as an empty three-column glyph.
     draw_small_char(submitted_char, RIGHT_EDGE_X, COLOUR_GREEN);
 
