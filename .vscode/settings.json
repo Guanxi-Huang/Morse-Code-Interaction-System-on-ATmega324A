@@ -1,0 +1,7 @@
+{
+  "platformio-ide.activateProjectOnTextEditorChange": true,
+  "platformio-ide.autoOpenPlatformIOIniFile": true,
+  "platformio-ide.autoPreloadEnvTasks": true,
+  "platformio-ide.showEditorTitleShortcuts": true,
+  "platformio-ide.disablePIOHomeStartup": false
+}

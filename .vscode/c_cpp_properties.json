@@ -1,0 +1,40 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "E:/Current Courses/CSSE2010/PlatformIO-ATmega324A/include",
+                "E:/Current Courses/CSSE2010/PlatformIO-ATmega324A/src",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "E:/Current Courses/CSSE2010/PlatformIO-ATmega324A/include",
+                    "E:/Current Courses/CSSE2010/PlatformIO-ATmega324A/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "F_CPU=8000000L",
+                "PLATFORMIO=60119",
+                "ARDUINO_AVR_ATmega324",
+                "__AVR_ATmega324A__",
+                ""
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++11",
+            "compilerPath": "C:/Users/asus/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe",
+            "compilerArgs": [
+                "-mmcu=atmega324a",
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}
