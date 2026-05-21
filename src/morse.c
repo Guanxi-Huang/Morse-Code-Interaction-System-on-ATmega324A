@@ -29,8 +29,10 @@
 #include "serial_view.h"
 #include "sync_mode.h"
 #include "buzzer.h"
+#include "joystick.h"
 
 #define SYNC_SWITCH_PIN PD3
+#define FONT_SWITCH_PIN PD4
 
 
 /* Internal Function Declarations */
@@ -42,10 +44,18 @@ void handle_button_event(button_event_t event);
 void handle_sync_event(sync_event_t event);
 void handle_serial_input(void);
 void handle_mode_transition(uint8_t sync_enabled);
+void handle_font_selection(void);
+void handle_joystick(void);
 void refresh_progress_outputs(void);
 uint8_t sync_mode_enabled(void);
+uint8_t large_font_enabled(void);
 
 static uint8_t previous_sync_mode;
+static uint8_t previous_large_font;
+static int8_t previous_scroll_direction;
+static int8_t previous_brightness_direction;
+static uint32_t next_scroll_ms;
+static uint32_t next_brightness_ms;
 
 
 int main(void)
@@ -65,8 +75,11 @@ void initialise_hardware(void)
     buzzer_init();
     io_led_init();
     sevenseg_init();
+    joystick_init();
     DDRD &= ~(1 << SYNC_SWITCH_PIN); // use S0 on PD3 as an active-high input
     PORTD &= ~(1 << SYNC_SWITCH_PIN); // leave the switch line externally driven
+    DDRD &= ~(1 << FONT_SWITCH_PIN); // use S1 on PD4 as an active-high input
+    PORTD &= ~(1 << FONT_SWITCH_PIN); // leave the font switch externally driven
     timer_init();
     sync_mode_init();
     sei(); // enable global interrupts
@@ -103,7 +116,13 @@ void start_morse(void)
     matrix_view_init();
     serial_view_init();
     previous_sync_mode = sync_mode_enabled();
+    previous_large_font = large_font_enabled();
+    previous_scroll_direction = 0;
+    previous_brightness_direction = 0;
+    next_scroll_ms = timer_millis();
+    next_brightness_ms = timer_millis();
     sync_mode_reset();
+    matrix_view_set_large_font(previous_large_font);
     sevenseg_set_values(input_chars_submitted(), input_marks_count());
 
     while(1)
@@ -129,6 +148,10 @@ void handle_inputs(void)
     // Always poll buttons so edge state stays current across mode changes.
     event = buttons_poll();
     sync_now = sync_mode_enabled();
+
+    // Apply Tier C controls that affect only the LED matrix view.
+    handle_font_selection();
+    handle_joystick();
 
     // Clear unfinished input when S0 changes mode.
     if (sync_now != previous_sync_mode)
@@ -251,7 +274,7 @@ void handle_serial_input(void)
     // A valid serial character replaces any unfinished button character.
     input_record_external_char(display_char);
     matrix_view_clear_in_progress();
-    serial_view_on_submit(display_char);
+    serial_view_on_submit_colour(display_char, COLOUR_YELLOW);
     sevenseg_set_values(input_chars_submitted(), input_marks_count());
 
     // Show the serial character in yellow and animate it left over time.
@@ -274,6 +297,62 @@ void handle_mode_transition(uint8_t sync_enabled)
     sevenseg_set_values(input_chars_submitted(), input_marks_count());
 }
 
+void handle_font_selection(void)
+{
+    uint8_t font_now = large_font_enabled();
+
+    // Redraw immediately if S1 changes between the small and large fonts.
+    if (font_now != previous_large_font)
+    {
+        previous_large_font = font_now;
+        matrix_view_set_large_font(font_now);
+    }
+}
+
+void handle_joystick(void)
+{
+    uint32_t now_ms = timer_millis();
+    uint16_t x_value = joystick_read_x();
+    uint16_t y_value = joystick_read_y();
+    int8_t scroll_direction;
+    int8_t brightness_direction;
+    uint16_t scroll_delay;
+
+    // X axis: right scrolls into past, left returns toward the present.
+    scroll_direction = joystick_axis_direction(x_value,
+            previous_scroll_direction);
+    if (scroll_direction == 0)
+    {
+        next_scroll_ms = now_ms;
+    }
+    else
+    {
+        scroll_delay = joystick_scroll_delay_ms(x_value);
+        if (scroll_direction != previous_scroll_direction
+                || now_ms >= next_scroll_ms)
+        {
+            matrix_view_scroll(scroll_direction);
+            next_scroll_ms = now_ms + scroll_delay;
+        }
+    }
+    previous_scroll_direction = scroll_direction;
+
+    // Y axis: high brightens, low darkens, with a one-second hold repeat.
+    brightness_direction = joystick_axis_direction(y_value,
+            previous_brightness_direction);
+    if (brightness_direction == 0)
+    {
+        next_brightness_ms = now_ms;
+    }
+    else if (brightness_direction != previous_brightness_direction
+            || now_ms >= next_brightness_ms)
+    {
+        matrix_view_adjust_brightness(brightness_direction);
+        next_brightness_ms = now_ms + 1000;
+    }
+    previous_brightness_direction = brightness_direction;
+}
+
 void refresh_progress_outputs(void)
 {
     char preview_char = input_current_char();
@@ -287,4 +366,10 @@ uint8_t sync_mode_enabled(void)
 {
     // S0 high selects synchronous mode; S0 low keeps Tier A asynchronous mode.
     return (PIND & (1 << SYNC_SWITCH_PIN)) ? 1 : 0;
+}
+
+uint8_t large_font_enabled(void)
+{
+    // S1 high selects the five-column font; S1 low selects the three-column font.
+    return (PIND & (1 << FONT_SWITCH_PIN)) ? 1 : 0;
 }

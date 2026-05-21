@@ -15,6 +15,7 @@
 #define CMD_SHIFT_DISPLAY      0x04
 #define CMD_CLEAR_SCREEN       0x0F
 #define SHIFT_DIR_LEFT         0x02
+#define SHIFT_DIR_RIGHT        0x01
 
 
 void ledmatrix_update_column(uint8_t x,  uint8_t pixels[MATRIX_NUM_ROWS])
@@ -42,4 +43,11 @@ void ledmatrix_shift_left(void)
     // Shift the current display one column left using the matrix command.
     (void)spi_send_byte(CMD_SHIFT_DISPLAY);
     (void)spi_send_byte(SHIFT_DIR_LEFT);
+}
+
+void ledmatrix_shift_right(void)
+{
+    // Shift the current display one column right using the matrix command.
+    (void)spi_send_byte(CMD_SHIFT_DISPLAY);
+    (void)spi_send_byte(SHIFT_DIR_RIGHT);
 }

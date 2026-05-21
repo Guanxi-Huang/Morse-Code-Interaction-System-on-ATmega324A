@@ -52,5 +52,7 @@ typedef enum
 
 void move_terminal_cursor(int x, int y);
 void clear_terminal(void);
+void set_terminal_display(DisplayParameter display_parameter);
+void reset_terminal_display(void);
 
 #endif /* TERMINAL_IO_H */

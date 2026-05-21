@@ -164,11 +164,20 @@ const uint8_t font_large[38][5] =
 
 void draw_small_char(char character, uint8_t x_position, uint8_t colour)
 {
-    uint8_t pixels[MATRIX_NUM_ROWS];
+    // Keep the original Tier A helper as the three-column font wrapper.
+    draw_char_with_font(character, x_position, colour, 0);
+}
 
-    for (uint8_t col = 0; col < 3; col++)
+void draw_char_with_font(char character, uint8_t x_position, uint8_t colour,
+        uint8_t large_font)
+{
+    uint8_t pixels[MATRIX_NUM_ROWS];
+    uint8_t glyph_width = get_char_glyph_width(large_font);
+
+    // Expand each glyph column into the matrix bottom-to-top row format.
+    for (uint8_t col = 0; col < glyph_width; col++)
     {
-        uint8_t glyph_column = get_small_glyph_column(character, col);
+        uint8_t glyph_column = get_char_glyph_column(character, col, large_font);
 
         for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++)
         {
@@ -178,6 +187,30 @@ void draw_small_char(char character, uint8_t x_position, uint8_t colour)
         }
         ledmatrix_update_column(x_position + col, pixels);
     }
+}
+
+uint8_t get_char_glyph_column(char character, uint8_t col, uint8_t large_font)
+{
+    uint8_t index = char_to_glyph_index(character);
+
+    // Return a blank column when the caller asks outside the selected font.
+    if (col >= get_char_glyph_width(large_font))
+    {
+        return 0;
+    }
+
+    // S1 selects the large five-column font; low keeps the three-column font.
+    if (large_font)
+    {
+        return font_large[index][col];
+    }
+    return font_small[index][col];
+}
+
+uint8_t get_char_glyph_width(uint8_t large_font)
+{
+    // The small font is three columns, while the Tier C font is five columns.
+    return large_font ? 5 : 3;
 }
 
 uint8_t get_small_glyph_column(char c, uint8_t col)
