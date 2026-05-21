@@ -33,6 +33,12 @@ void serial_view_on_submit(char submitted_char)
     move_terminal_cursor(cursor_col, cursor_row);
 }
 
+void serial_view_clear_in_progress(void)
+{
+    // Erase the preview character and keep the cursor at the same slot.
+    print_at_cursor(' ');
+}
+
 static void print_at_cursor(char character)
 {
     move_terminal_cursor(cursor_col, cursor_row);

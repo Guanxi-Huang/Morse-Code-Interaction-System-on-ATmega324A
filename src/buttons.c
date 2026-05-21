@@ -62,3 +62,9 @@ button_event_t buttons_poll(void)
     }
     return BTN_NONE;
 }
+
+uint8_t buttons_b0_held(void)
+{
+    // Report the raw B0 level so synchronous mode can measure press length.
+    return (PINB & (1 << PB0)) ? 1 : 0;
+}

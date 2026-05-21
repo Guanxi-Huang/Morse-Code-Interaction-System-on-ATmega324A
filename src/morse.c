@@ -27,6 +27,10 @@
 #include "io_led.h"
 #include "sevenseg.h"
 #include "serial_view.h"
+#include "sync_mode.h"
+#include "buzzer.h"
+
+#define SYNC_SWITCH_PIN PD3
 
 
 /* Internal Function Declarations */
@@ -35,7 +39,13 @@ void start_morse(void);
 void start_splash_screen(void);
 void handle_inputs(void);
 void handle_button_event(button_event_t event);
+void handle_sync_event(sync_event_t event);
+void handle_serial_input(void);
+void handle_mode_transition(uint8_t sync_enabled);
 void refresh_progress_outputs(void);
+uint8_t sync_mode_enabled(void);
+
+static uint8_t previous_sync_mode;
 
 
 int main(void)
@@ -52,9 +62,13 @@ void initialise_hardware(void)
     init_serial_stdio(19200);
     buttons_init();
     input_state_init();
+    buzzer_init();
     io_led_init();
     sevenseg_init();
+    DDRD &= ~(1 << SYNC_SWITCH_PIN); // use S0 on PD3 as an active-high input
+    PORTD &= ~(1 << SYNC_SWITCH_PIN); // leave the switch line externally driven
     timer_init();
+    sync_mode_init();
     sei(); // enable global interrupts
 }
 
@@ -88,6 +102,8 @@ void start_morse(void)
     buttons_sync(); // consume the splash-screen button press
     matrix_view_init();
     serial_view_init();
+    previous_sync_mode = sync_mode_enabled();
+    sync_mode_reset();
     sevenseg_set_values(input_chars_submitted(), input_marks_count());
 
     while(1)
@@ -100,18 +116,45 @@ void start_morse(void)
 
 void handle_inputs(void)
 {
+    button_event_t event;
+    uint8_t sync_now;
+
+    // Advance periodic animations before handling new input events.
     if (timer_tick_consume())
     {
         io_led_tick();
         matrix_view_tick();
     }
 
-    button_event_t event = buttons_poll();
+    // Always poll buttons so edge state stays current across mode changes.
+    event = buttons_poll();
+    sync_now = sync_mode_enabled();
 
+    // Clear unfinished input when S0 changes mode.
+    if (sync_now != previous_sync_mode)
+    {
+        handle_mode_transition(sync_now);
+        previous_sync_mode = sync_now;
+    }
+
+    // In synchronous mode only B0 timing is used; B1/B2 edge events are ignored.
+    if (sync_now)
+    {
+        sync_event_t sync_event = sync_mode_poll();
+        if (sync_event != SYNC_EVENT_NONE)
+        {
+            handle_sync_event(sync_event);
+        }
+        handle_serial_input();
+        return;
+    }
+
+    // In asynchronous mode, the button rising edges directly create inputs.
     if (event != BTN_NONE)
     {
         handle_button_event(event);
     }
+    handle_serial_input();
 }
 
 void handle_button_event(button_event_t event)
@@ -159,6 +202,78 @@ void handle_button_event(button_event_t event)
     }
 }
 
+void handle_sync_event(sync_event_t event)
+{
+    // Reuse the asynchronous handlers so every Tier A output stays consistent.
+    switch (event)
+    {
+        case SYNC_EVENT_DOT:
+            handle_button_event(BTN_DOT);
+            break;
+
+        case SYNC_EVENT_DASH:
+            handle_button_event(BTN_DASH);
+            break;
+
+        case SYNC_EVENT_SUBMIT:
+            handle_button_event(BTN_SUBMIT);
+            break;
+
+        case SYNC_EVENT_NONE:
+        default:
+            break;
+    }
+}
+
+void handle_serial_input(void)
+{
+    char received_char;
+    uint8_t morse_code;
+    char display_char;
+
+    // Only read stdin when the interrupt buffer says a byte is ready.
+    if (!serial_input_available())
+    {
+        return;
+    }
+
+    // Convert the typed character to Morse and ignore unsupported input.
+    received_char = (char)fgetc(stdin);
+    morse_code = char_to_morse(received_char);
+    if (morse_code == 0)
+    {
+        return;
+    }
+
+    // Use the decoded character so terminal output is always uppercase.
+    display_char = morse_to_char(morse_code);
+
+    // A valid serial character replaces any unfinished button character.
+    input_record_external_char(display_char);
+    matrix_view_clear_in_progress();
+    serial_view_on_submit(display_char);
+    sevenseg_set_values(input_chars_submitted(), input_marks_count());
+
+    // Show the serial character in yellow and animate it left over time.
+    matrix_view_on_submit_colour(display_char, COLOUR_YELLOW);
+
+    // Snap old playback, then queue the Morse pattern from its first beat.
+    io_led_clear_queue();
+    io_led_enqueue_morse_code(morse_code, 1);
+    io_led_tick();
+}
+
+void handle_mode_transition(uint8_t sync_enabled)
+{
+    // Discard the unfinished character when switching between input modes.
+    (void)sync_enabled;
+    input_clear_in_progress();
+    matrix_view_clear_in_progress();
+    serial_view_clear_in_progress();
+    sync_mode_reset();
+    sevenseg_set_values(input_chars_submitted(), input_marks_count());
+}
+
 void refresh_progress_outputs(void)
 {
     char preview_char = input_current_char();
@@ -166,4 +281,10 @@ void refresh_progress_outputs(void)
     matrix_view_on_mark(preview_char);
     serial_view_on_mark(preview_char);
     sevenseg_set_values(input_chars_submitted(), input_marks_count());
+}
+
+uint8_t sync_mode_enabled(void)
+{
+    // S0 high selects synchronous mode; S0 low keeps Tier A asynchronous mode.
+    return (PIND & (1 << SYNC_SWITCH_PIN)) ? 1 : 0;
 }

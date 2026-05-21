@@ -34,6 +34,24 @@ void input_add_dash(void)
     input_add_mark(1);
 }
 
+void input_clear_in_progress(void)
+{
+    // Drop the unfinished character without changing completed history.
+    current_code = 1;
+    marks_count = 0;
+    consecutive_submits = 0;
+}
+
+void input_record_external_char(char submitted_char)
+{
+    // Store a complete serial character using the same completed count.
+    input_clear_in_progress();
+    history_push(submitted_char);
+    last_submitted_char = submitted_char;
+    chars_submitted++;
+    consecutive_submits = 1;
+}
+
 submit_result_t input_submit(void)
 {
     if (marks_count > 0)

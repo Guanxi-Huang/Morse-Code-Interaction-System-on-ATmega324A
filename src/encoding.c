@@ -69,3 +69,54 @@ char morse_to_char(uint8_t code)
         default: return '?'; 
     }
 }
+
+uint8_t char_to_morse(char character)
+{
+    // Normalise lowercase serial input before checking the Morse table.
+    if ('a' <= character && character <= 'z')
+    {
+        character = character - 'a' + 'A';
+    }
+
+    // Return the prefix-coded Morse pattern, or 0 for unsupported input.
+    switch (character)
+    {
+        case 'A': return 0b00000101;
+        case 'B': return 0b00011000;
+        case 'C': return 0b00011010;
+        case 'D': return 0b00001100;
+        case 'E': return 0b00000010;
+        case 'F': return 0b00010010;
+        case 'G': return 0b00001110;
+        case 'H': return 0b00010000;
+        case 'I': return 0b00000100;
+        case 'J': return 0b00010111;
+        case 'K': return 0b00001101;
+        case 'L': return 0b00010100;
+        case 'M': return 0b00000111;
+        case 'N': return 0b00000110;
+        case 'O': return 0b00001111;
+        case 'P': return 0b00010110;
+        case 'Q': return 0b00011101;
+        case 'R': return 0b00001010;
+        case 'S': return 0b00001000;
+        case 'T': return 0b00000011;
+        case 'U': return 0b00001001;
+        case 'V': return 0b00010001;
+        case 'W': return 0b00001011;
+        case 'X': return 0b00011001;
+        case 'Y': return 0b00011011;
+        case 'Z': return 0b00011100;
+        case '0': return 0b00111111;
+        case '1': return 0b00101111;
+        case '2': return 0b00100111;
+        case '3': return 0b00100011;
+        case '4': return 0b00100001;
+        case '5': return 0b00100000;
+        case '6': return 0b00110000;
+        case '7': return 0b00111000;
+        case '8': return 0b00111100;
+        case '9': return 0b00111110;
+        default: return 0;
+    }
+}

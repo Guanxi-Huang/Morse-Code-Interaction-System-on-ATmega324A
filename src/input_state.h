@@ -15,6 +15,8 @@ typedef enum
 void input_state_init(void);
 void input_add_dot(void);
 void input_add_dash(void);
+void input_clear_in_progress(void);
+void input_record_external_char(char submitted_char);
 submit_result_t input_submit(void);
 uint8_t input_marks_count(void);
 uint8_t input_chars_submitted(void);
