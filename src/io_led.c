@@ -12,6 +12,7 @@ static uint8_t led_queue[LED_QUEUE_LEN];
 static uint8_t queue_head;
 static uint8_t queue_tail;
 static uint8_t queued_beats;
+static uint8_t mark_gap_pending;
 
 static void enqueue_beat(uint8_t bit);
 static uint8_t dequeue_beat(uint8_t *bit);
@@ -27,28 +28,39 @@ void io_led_init(void)
     queue_head = 0;
     queue_tail = 0;
     queued_beats = 0;
+    mark_gap_pending = 0;
     write_led_outputs();
 }
 
 void io_led_on_dot(void)
 {
+    if (mark_gap_pending)
+    {
+        enqueue_beat(0);
+    }
     enqueue_beat(1);
-    enqueue_beat(0);
+    mark_gap_pending = 1;
 }
 
 void io_led_on_dash(void)
 {
+    if (mark_gap_pending)
+    {
+        enqueue_beat(0);
+    }
     enqueue_beat(1);
     enqueue_beat(1);
     enqueue_beat(1);
-    enqueue_beat(0);
+    mark_gap_pending = 1;
 }
 
 void io_led_on_submit_character(void)
 {
-    // A character gap is three low beats; one mark gap was already queued.
+    // Character gaps are three low beats after the previous mark.
     enqueue_beat(0);
     enqueue_beat(0);
+    enqueue_beat(0);
+    mark_gap_pending = 0;
 }
 
 void io_led_on_submit_word(void)
@@ -56,6 +68,7 @@ void io_led_on_submit_word(void)
     // A word gap is five low beats; extend the previous character gap by two.
     enqueue_beat(0);
     enqueue_beat(0);
+    mark_gap_pending = 0;
 }
 
 void io_led_tick(void)
@@ -102,5 +115,5 @@ static void push_led_history(uint8_t bit)
 static void write_led_outputs(void)
 {
     PORTA = (PORTA & ~LED_LOW_MASK) | ((led_history & 0x3F) << 2);
-    PORTD = (PORTD & ~LED_HIGH_MASK) | ((led_history & 0xC0) >> 1);
+    PORTD = (PORTD & ~LED_HIGH_MASK) | (led_history & 0xC0);
 }

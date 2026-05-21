@@ -100,17 +100,17 @@ void start_morse(void)
 
 void handle_inputs(void)
 {
+    if (timer_tick_consume())
+    {
+        io_led_tick();
+        matrix_view_tick();
+    }
+
     button_event_t event = buttons_poll();
 
     if (event != BTN_NONE)
     {
         handle_button_event(event);
-    }
-
-    if (timer_tick_consume())
-    {
-        io_led_tick();
-        matrix_view_tick();
     }
 }
 
